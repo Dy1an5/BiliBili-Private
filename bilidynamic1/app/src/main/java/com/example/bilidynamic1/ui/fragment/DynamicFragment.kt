@@ -24,6 +24,9 @@ class DynamicFragment : Fragment(R.layout.fragment_dynamic) {
     private lateinit var swipeRefresh: SwipeRefreshLayout
 
     // 1️⃣ 初始化 Adapter 时传入点击逻辑
+    // ⭐️ 增加状态锁，防止并发刷新产生多个线程
+    private var isRefreshing = false
+
     private val adapter = DynamicAdapter { item ->
         onDynamicClick(item)
     }
@@ -38,13 +41,48 @@ class DynamicFragment : Fragment(R.layout.fragment_dynamic) {
         recyclerView.adapter = adapter
 
         swipeRefresh.setOnRefreshListener {
-            loadData()
+            loadData() // 下拉刷新调用
         }
 
-        // 2️⃣ 预加载 Wbi Key (非常重要！否则点击视频时还没 Key 会导致签名失败)
         preloadWbiKeys()
+        loadData() // 首次加载调用
+    }
 
-        loadData()
+    private fun loadData() {
+        // ⭐️ 检查锁：如果正在加载中，则不开启新线程
+        if (isRefreshing) return
+
+        isRefreshing = true
+        swipeRefresh.isRefreshing = true
+
+        Thread {
+            try {
+                val list = DynamicRepository.loadVideoDynamics(100)
+                Log.d("DynamicFragment", "list size = ${list.size}")
+
+                // ⭐️ 使用 activity? 安全调用，防止 requireActivity() 崩溃
+                activity?.runOnUiThread {
+                    // ⭐️ 检查 Fragment 是否还附着在 Activity 上
+                    if (!isAdded) return@runOnUiThread
+
+                    adapter.submitList(list)
+
+                    // 释放锁
+                    swipeRefresh.isRefreshing = false
+                    isRefreshing = false
+                }
+            } catch (e: Exception) {
+                Log.e("DynamicFragment", "loadData error", e)
+
+                activity?.runOnUiThread {
+                    if (isAdded) {
+                        swipeRefresh.isRefreshing = false
+                        isRefreshing = false // 报错也要释放锁
+                        Toast.makeText(context, "加载失败", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }.start()
     }
 
     private fun preloadWbiKeys() {
@@ -96,25 +134,4 @@ class DynamicFragment : Fragment(R.layout.fragment_dynamic) {
         startActivity(intent)
     }
 
-    private fun loadData() {
-        swipeRefresh.isRefreshing = true
-        Thread {
-            try {
-                val list = DynamicRepository.loadVideoDynamics(50)
-                Log.d("DynamicFragment", "list size = ${list.size}")
-
-                requireActivity().runOnUiThread {
-                    if (isAdded) {
-                        adapter.submitList(list)
-                        swipeRefresh.isRefreshing = false
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("DynamicFragment", "loadData error", e)
-                requireActivity().runOnUiThread {
-                    if (isAdded) swipeRefresh.isRefreshing = false
-                }
-            }
-        }.start()
-    }
 }

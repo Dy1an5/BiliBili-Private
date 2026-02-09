@@ -8,6 +8,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.bilidynamic1.R
 import com.example.bilidynamic1.ui.fragment.DynamicFragment
+import com.example.bilidynamic1.ui.fragment.InformationFragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class IndexActivity : AppCompatActivity() {
@@ -35,7 +36,7 @@ class IndexActivity : AppCompatActivity() {
                 }
                 R.id.nav_profile -> {
                     supportFragmentManager.beginTransaction()
-                        .replace(R.id.fragmentContainer, DynamicFragment())
+                        .replace(R.id.fragmentContainer, InformationFragment())
                         .commit()
                     true
                 }

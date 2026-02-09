@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="12dp"
+    android:layout_marginVertical="2dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="3dp">
+
+<androidx.constraintlayout.widget.ConstraintLayout
+android:layout_width="match_parent"
+android:layout_height="wrap_content"
+android:padding="12dp"> <!-- 增加内边距也会让卡片看起来更厚 -->
+
+<!-- 3. 增加封面尺寸来增加整体卡片高度 -->
+<androidx.cardview.widget.CardView
+    android:id="@+id/cvCover"
+    android:layout_width="120dp"
+    android:layout_height="80dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp"
+    app:layout_constraintBottom_toBottomOf="parent"
+    app:layout_constraintStart_toStartOf="parent"
+    app:layout_constraintTop_toTopOf="parent">
+
+    <ImageView
+        android:id="@+id/imgCover"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        tools:src="@mipmap/ic_launcher" />
+</androidx.cardview.widget.CardView>
+
+<!-- 标题 -->
+<TextView
+    android:id="@+id/tvTitle"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="14dp"
+    android:ellipsize="end"
+    android:maxLines="2"
+    android:textColor="@color/text_main"
+    android:textSize="12sp"
+    android:textStyle="bold"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toEndOf="@id/cvCover"
+    app:layout_constraintTop_toTopOf="@id/cvCover"
+    tools:text="视频标题加载中..." />
+
+<!-- UP主头像卡片 -->
+<androidx.cardview.widget.CardView
+    android:id="@+id/cvUpAvatar"
+    android:layout_width="30dp"
+    android:layout_height="30dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="0dp"
+    app:layout_constraintBottom_toBottomOf="@id/cvCover"
+    app:layout_constraintStart_toStartOf="@id/tvTitle">
+
+    <ImageView
+        android:id="@+id/imgUpAvatar"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        tools:src="@mipmap/ic_launcher_round" />
+</androidx.cardview.widget.CardView>
+
+<!-- UP主名称 -->
+<TextView
+    android:id="@+id/tvUpName"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="8dp"
+    android:ellipsize="end"
+    android:maxLines="1"
+    android:textColor="@color/text_sub"
+    android:textSize="12sp"
+    app:layout_constraintBottom_toBottomOf="@id/cvUpAvatar"
+    app:layout_constraintEnd_toEndOf="parent"
+    app:layout_constraintStart_toEndOf="@id/cvUpAvatar"
+    app:layout_constraintTop_toTopOf="@id/cvUpAvatar"
+    tools:text="UP主名称" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.cardview.widget.CardView>

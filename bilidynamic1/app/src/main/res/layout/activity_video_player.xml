@@ -16,7 +16,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:resize_mode="fit"
-        app:show_buffering="when_playing" />
+        app:show_buffering="when_playing"/>
 
     <!-- 加载转圈圈 -->
     <ProgressBar

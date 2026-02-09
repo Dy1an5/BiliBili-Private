@@ -1,7 +1,6 @@
 package com.example.bilidynamic1.data.manager
 
 import android.util.Log
-import com.example.bilidynamic1.data.manager.UserManager
 import com.example.bilidynamic1.data.model.NetworkClient
 import okhttp3.Request
 import org.json.JSONObject

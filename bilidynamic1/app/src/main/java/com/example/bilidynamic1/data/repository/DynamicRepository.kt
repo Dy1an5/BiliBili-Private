@@ -15,7 +15,7 @@ object DynamicRepository {
      * 加载视频动态列表
      * @param maxCount 期望获取的条数
      */
-    fun loadVideoDynamics(maxCount: Int = 50): List<DynamicItem> {
+    fun loadVideoDynamics(maxCount: Int = 100): List<DynamicItem> {
         val result = mutableListOf<DynamicItem>()
         var offset = ""
 
