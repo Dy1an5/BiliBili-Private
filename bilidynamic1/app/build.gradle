@@ -7,6 +7,15 @@ android {
     namespace 'com.example.bilidynamic1'
     compileSdk 35
 
+    sourceSets {
+        main {
+            res.srcDirs = [
+                    'src/main/res/layout_item',  // 自定义目录（注意指向layout_item本身）
+                    'src/main/res'                // 默认目录（必须放在最后）
+            ]
+        }
+    }
+
     defaultConfig {
         applicationId "com.example.bilidynamic1"
         minSdk 24

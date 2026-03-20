@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -13,82 +14,257 @@ import com.example.bilidynamic1.R
 import com.example.bilidynamic1.data.repository.DynamicRepository
 import com.example.bilidynamic1.ui.activity.VideoPlayerActivity
 import com.example.bilidynamic1.data.manager.WbiUtil
-
-import com.example.bilydynamic1.ui.adapter.DynamicAdapter
 import com.example.bilidynamic1.data.model.DynamicItem
-
+import com.example.bilydynamic1.ui.adapter.DynamicAdapter
+import com.google.android.material.appbar.AppBarLayout
+import com.google.android.material.appbar.CollapsingToolbarLayout
 
 class DynamicFragment : Fragment(R.layout.fragment_dynamic) {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var swipeRefresh: SwipeRefreshLayout
-
-    // 1️⃣ 初始化 Adapter 时传入点击逻辑
-    // ⭐️ 增加状态锁，防止并发刷新产生多个线程
-    private var isRefreshing = false
+    private lateinit var collapsingToolbar: CollapsingToolbarLayout
+    private lateinit var tvCollapsedTitle: TextView
+    private lateinit var appBarLayout: AppBarLayout
+    private lateinit var dividerLine: View
 
     private val adapter = DynamicAdapter { item ->
         onDynamicClick(item)
     }
 
+    // 下拉刷新状态锁
+    private var isRefreshing = false
+
+    // 分页加载相关变量
+    private var currentOffset = ""
+    private var isLoadingMore = false
+    private var hasMoreData = true
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        swipeRefresh = view.findViewById(R.id.swipeRefresh)
-        recyclerView = view.findViewById(R.id.recyclerViewDynamic)
-
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        recyclerView.adapter = adapter
-
-        swipeRefresh.setOnRefreshListener {
-            loadData() // 下拉刷新调用
-        }
+        initViews(view)
+        setupTitle()
+        setupAppBarListener()
+        setupRecyclerView(view)
+        setupSwipeRefresh()
 
         preloadWbiKeys()
-        loadData() // 首次加载调用
+        loadFirstPage() // 首次加载第一页
     }
 
-    private fun loadData() {
-        // ⭐️ 检查锁：如果正在加载中，则不开启新线程
-        if (isRefreshing) return
+    private fun initViews(view: View) {
+        collapsingToolbar = view.findViewById(R.id.collapsingToolbar)
+        tvCollapsedTitle = view.findViewById(R.id.tvCollapsedTitle)
+        appBarLayout = view.findViewById(R.id.appBarLayout)
+        dividerLine = view.findViewById(R.id.dividerLine)
+        swipeRefresh = view.findViewById(R.id.swipeRefresh)
+        recyclerView = view.findViewById(R.id.recyclerViewDynamic)
+    }
 
-        isRefreshing = true
-        swipeRefresh.isRefreshing = true
+    private fun setupTitle() {
+        collapsingToolbar.title = "动态"
+        tvCollapsedTitle.visibility = View.GONE
+    }
+
+    private fun setupAppBarListener() {
+        appBarLayout.addOnOffsetChangedListener(AppBarLayout.OnOffsetChangedListener { appBar, verticalOffset ->
+            val scrollRange = appBar.totalScrollRange
+            val scrollPercentage = if (scrollRange > 0) {
+                (Math.abs(verticalOffset) * 1.0f / scrollRange)
+            } else {
+                0f
+            }
+
+            when {
+                scrollPercentage == 0f -> {
+                    collapsingToolbar.title = "动态"
+                    tvCollapsedTitle.visibility = View.GONE
+                    dividerLine.visibility = View.VISIBLE
+                }
+                scrollPercentage >= 0.95f -> {
+                    collapsingToolbar.title = ""
+                    tvCollapsedTitle.visibility = View.VISIBLE
+                    tvCollapsedTitle.text = "动态"
+                    dividerLine.visibility = View.GONE
+                }
+                else -> {
+                    collapsingToolbar.title = "动态"
+                    tvCollapsedTitle.visibility = View.GONE
+                    dividerLine.visibility = View.VISIBLE
+                }
+            }
+        })
+    }
+
+    private fun setupRecyclerView(view: View) {
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        recyclerView.adapter = adapter
+        recyclerView.isNestedScrollingEnabled = true
+
+        // 添加上拉加载更多的监听
+        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                val lastVisibleItemPosition = layoutManager.findLastVisibleItemPosition()
+                val totalItemCount = layoutManager.itemCount
+
+                // 当滑到底部且还有更多数据且不在加载中时，加载更多
+                // 使用 lastVisibleItemPosition >= totalItemCount - 3 提前触发加载
+                if (!isLoadingMore && hasMoreData && lastVisibleItemPosition >= totalItemCount - 3) {
+                    loadMoreData()
+                }
+            }
+        })
+    }
+
+    private fun setupSwipeRefresh() {
+        swipeRefresh.setOnRefreshListener {
+            refreshData() // 下拉刷新
+        }
+
+        swipeRefresh.setColorSchemeResources(
+            android.R.color.holo_blue_bright,
+            android.R.color.holo_green_light,
+            android.R.color.holo_orange_light,
+            android.R.color.holo_red_light
+        )
+
+        swipeRefresh.setProgressViewOffset(
+            true,
+            dpToPx(100),
+            dpToPx(140)
+        )
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
+    }
+
+    /**
+     * 加载第一页数据
+     */
+    private fun loadFirstPage() {
+        currentOffset = ""
+        hasMoreData = true
+        loadData(isRefresh = true)
+    }
+
+    /**
+     * 刷新数据
+     */
+    private fun refreshData() {
+        if (isRefreshing) return
+        currentOffset = ""
+        hasMoreData = true
+        loadData(isRefresh = true)
+    }
+
+    /**
+     * 加载更多数据
+     */
+    private fun loadMoreData() {
+        if (!hasMoreData || isLoadingMore) return
+        loadData(isRefresh = false)
+    }
+
+    /**
+     * 统一的数据加载方法
+     * @param isRefresh 是否是下拉刷新（true会清空列表）
+     */
+    private fun loadData(isRefresh: Boolean) {
+        // 检查锁
+        if (isRefresh) {
+            if (isRefreshing) return
+            isRefreshing = true
+            swipeRefresh.isRefreshing = true
+        } else {
+            if (isLoadingMore) return
+            isLoadingMore = true
+            showLoadMoreIndicator()
+        }
 
         Thread {
             try {
-                val list = DynamicRepository.loadVideoDynamics(100)
-                Log.d("DynamicFragment", "list size = ${list.size}")
+                // 调用分页加载方法
+                val result = DynamicRepository.loadVideoDynamicsPage(currentOffset)
 
-                // ⭐️ 使用 activity? 安全调用，防止 requireActivity() 崩溃
                 activity?.runOnUiThread {
-                    // ⭐️ 检查 Fragment 是否还附着在 Activity 上
                     if (!isAdded) return@runOnUiThread
 
-                    adapter.submitList(list)
+                    if (isRefresh) {
+                        // 下拉刷新：替换整个列表
+                        adapter.submitList(result.items)
+                        isRefreshing = false
+                        swipeRefresh.isRefreshing = false
 
-                    // 释放锁
-                    swipeRefresh.isRefreshing = false
-                    isRefreshing = false
+                        // 处理空数据情况
+                        if (result.items.isEmpty()) {
+                            Toast.makeText(context, "暂无动态", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        // 加载更多：追加到现有列表
+                        if (result.items.isNotEmpty()) {
+                            val currentList = adapter.currentList.toMutableList()
+                            currentList.addAll(result.items)
+                            adapter.submitList(currentList)
+                        }
+                        isLoadingMore = false
+                        hideLoadMoreIndicator()
+
+                        // 如果没有更多数据，提示用户
+                        if (!result.hasMore) {
+                            Toast.makeText(context, "没有更多动态了", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+                    // 更新分页参数
+                    currentOffset = result.nextOffset
+                    hasMoreData = result.hasMore
+
+                    Log.d("DynamicFragment", "Loaded ${result.items.size} items, hasMore: ${result.hasMore}")
                 }
             } catch (e: Exception) {
                 Log.e("DynamicFragment", "loadData error", e)
 
                 activity?.runOnUiThread {
-                    if (isAdded) {
+                    if (!isAdded) return@runOnUiThread
+
+                    if (isRefresh) {
+                        isRefreshing = false
                         swipeRefresh.isRefreshing = false
-                        isRefreshing = false // 报错也要释放锁
-                        Toast.makeText(context, "加载失败", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "刷新失败", Toast.LENGTH_SHORT).show()
+                    } else {
+                        isLoadingMore = false
+                        hideLoadMoreIndicator()
+                        Toast.makeText(context, "加载更多失败", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
         }.start()
     }
 
+    /**
+     * 显示底部加载更多指示器
+     */
+    private fun showLoadMoreIndicator() {
+        // 可以在这里添加一个Footer显示"正在加载..."
+        // 简单起见，可以用日志或Toast
+        Log.d("DynamicFragment", "Loading more...")
+    }
+
+    /**
+     * 隐藏底部加载更多指示器
+     */
+    private fun hideLoadMoreIndicator() {
+        Log.d("DynamicFragment", "Loading more finished")
+    }
+
     private fun preloadWbiKeys() {
         Thread {
             try {
-                // 确保 WbiUtil 已经按照之前的代码实现好了
                 WbiUtil.refreshKeys()
                 Log.d("DynamicFragment", "Wbi Keys preloaded success")
             } catch (e: Exception) {
@@ -97,22 +273,15 @@ class DynamicFragment : Fragment(R.layout.fragment_dynamic) {
         }.start()
     }
 
-    // 3️⃣ 处理点击跳转逻辑
-    // 在 DynamicFragment 中
     private fun onDynamicClick(item: DynamicItem) {
         if (item.bvid.isEmpty()) return
 
-        // 情况 A: 运气好，列表直接给了 cid
         if (item.cid != 0L) {
             goToPlayer(item.bvid, item.cid)
-        }
-        // 情况 B: 列表没给 cid，需要现场查一下
-        else {
-            // 显示一个 Loading
+        } else {
             Toast.makeText(context, "正在获取视频信息...", Toast.LENGTH_SHORT).show()
 
             Thread {
-                // 调用上面新写的 fetchCid 方法
                 val realCid = DynamicRepository.fetchCid(item.bvid)
 
                 requireActivity().runOnUiThread {
@@ -133,5 +302,4 @@ class DynamicFragment : Fragment(R.layout.fragment_dynamic) {
         }
         startActivity(intent)
     }
-
 }
