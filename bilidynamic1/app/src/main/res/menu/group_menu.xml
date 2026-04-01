@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_set_filter"
+        android:title="设置白名单/黑名单" />
+    <item
+        android:id="@+id/menu_create_group"
+        android:title="新建分组" />
+</menu>

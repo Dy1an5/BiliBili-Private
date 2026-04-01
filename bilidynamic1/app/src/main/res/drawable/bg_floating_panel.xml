@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 纯白背景 -->
+    <solid android:color="#FFFFFF" />
+    <!-- 24dp 的大圆角看起来更现代 -->
+    <corners android:radius="24dp" />
+    <!-- 极浅的灰色边框，增加细节 -->
+    <stroke android:width="1dp" android:color="#F0F0F0" />
+</shape>
